@@ -1,6 +1,7 @@
 """kiro_bridge.py — Production bridge between Telegram bot and Kiro CLI via ACP."""
 
 import atexit
+import json
 import logging
 import os
 import threading
@@ -13,6 +14,7 @@ os.makedirs(WORKING_DIR, exist_ok=True)
 CONTEXT_THRESHOLD = 80  # start new session when context usage exceeds this %
 BOT_DIR = os.path.dirname(os.path.abspath(__file__))
 SOUL_PATH = os.path.join(BOT_DIR, "SOUL.md")
+SESSIONS_FILE = os.path.join(BOT_DIR, "sessions.json")
 
 log = logging.getLogger(__name__)
 
@@ -43,7 +45,24 @@ class KiroBridge:
         self._soul = _load_soul()
         if self._soul:
             log.info("🧠 SOUL.md loaded (%d chars)", len(self._soul))
+        self._load_sessions()
         atexit.register(self.stop)
+
+    def _load_sessions(self):
+        """Restore session IDs from disk."""
+        try:
+            with open(SESSIONS_FILE, "r") as f:
+                data = json.load(f)
+            self._sessions = data.get("active", {})
+            self._session_history = data.get("history", {})
+            log.info("📂 Restored %d session(s) from disk", len(self._sessions))
+        except (FileNotFoundError, json.JSONDecodeError):
+            pass
+
+    def _save_sessions(self):
+        """Persist session IDs to disk."""
+        with open(SESSIONS_FILE, "w") as f:
+            json.dump({"active": self._sessions, "history": self._session_history}, f)
 
     def _start_acp(self):
         with self._acp_lock:
@@ -52,8 +71,6 @@ class KiroBridge:
             if self._acp is not None:
                 log.warning("🔄 ACP process died, restarting...")
                 self._acp = None
-                with self._sessions_lock:
-                    self._sessions.clear()
             self._acp = ACPClient(cli_path=KIRO_CLI_PATH)
             self._acp.start(cwd=WORKING_DIR)
             self._acp.on_permission_request(lambda req: "allow_once")
@@ -64,11 +81,22 @@ class KiroBridge:
         return self._acp
 
     def _get_session(self, key: str = "default") -> str:
-        """Get or create a session. Rotates automatically when context is high."""
+        """Get or create a session. Resumes from disk, rotates when context is high."""
         with self._sessions_lock:
-            if key in self._sessions:
-                sid = self._sessions[key]
-                meta = self._ensure_acp()._session_metadata.get(sid, {})
+            sid = self._sessions.get(key)
+
+        if sid:
+            acp = self._ensure_acp()
+            # Try to resume persisted session
+            if sid not in acp._session_metadata:
+                try:
+                    acp.session_load(sid, WORKING_DIR)
+                    log.info("▶️ Resumed session %s for %s", sid[:12], key)
+                    return sid
+                except Exception:
+                    log.warning("Could not resume session %s, creating new", sid[:12])
+            else:
+                meta = acp._session_metadata.get(sid, {})
                 if meta.get("contextUsagePercentage", 0) <= CONTEXT_THRESHOLD:
                     return sid
                 log.warning("Context at %.1f%% for session %s, rotating",
@@ -79,6 +107,7 @@ class KiroBridge:
         with self._sessions_lock:
             self._sessions[key] = session_id
             self._session_history.setdefault(key, []).append(session_id)
+            self._save_sessions()
         return session_id
 
     def prompt(self, text: str, user_key: str = "default",
@@ -135,6 +164,7 @@ class KiroBridge:
         acp.session_load(session_id, WORKING_DIR)
         with self._sessions_lock:
             self._sessions[user_key] = session_id
+            self._save_sessions()
         return True
 
     def stop(self):
