@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
-# curl -fsSL https://raw.githubusercontent.com/notacryptodad/kiro-chat-bot/main/install.sh | bash
+# bash <(curl -fsSL https://raw.githubusercontent.com/notacryptodad/kiro-chat-bot/main/install.sh)
 set -euo pipefail
+
+# Open tty for interactive prompts (survives curl|bash)
+exec 3</dev/tty || { echo "Error: no terminal available"; exit 1; }
 
 REPO="https://github.com/notacryptodad/kiro-chat-bot.git"
 INSTALL_DIR="$HOME/.kiro-chat-bot"
 SERVICE_NAME="kiro-chat-bot"
 VERSION="1.0.0"
+BUILD="2026-03-10"
 
 red()   { printf '\033[0;31m%s\033[0m\n' "$*"; }
 green() { printf '\033[0;32m%s\033[0m\n' "$*"; }
@@ -16,6 +20,7 @@ header() {
     echo ""
     bold "╔════════════════════════════════════════╗"
     bold "║   Kiro CLI Telegram Bot v${VERSION}         ║"
+    bold "║   Build: ${BUILD}                        ║"
     bold "╚════════════════════════════════════════╝"
     echo ""
 }
@@ -95,17 +100,17 @@ else
     echo ""
     echo "  Get a bot token from https://t.me/BotFather"
     echo ""
-    printf "  Telegram Bot Token: "; read -r TG_TOKEN < /dev/tty
+    printf "  Telegram Bot Token: "; read -r TG_TOKEN <&3
     [ -n "$TG_TOKEN" ] || fail "Token cannot be empty"
 
-    printf "  Allowed user IDs (comma-separated, blank=all): "; read -r ALLOWED_IDS < /dev/tty
-    printf "  Working directory for Kiro [$HOME/projects]: "; read -r WORK_DIR < /dev/tty
+    printf "  Allowed user IDs (comma-separated, blank=all): "; read -r ALLOWED_IDS <&3
+    printf "  Working directory for Kiro [$HOME/projects]: "; read -r WORK_DIR <&3
     WORK_DIR="${WORK_DIR:-$HOME/projects}"
     mkdir -p "$WORK_DIR"
 
-    printf "  Bot name [Kiro]: "; read -r BOT_DISPLAY_NAME < /dev/tty
+    printf "  Bot name [Kiro]: "; read -r BOT_DISPLAY_NAME <&3
     BOT_DISPLAY_NAME="${BOT_DISPLAY_NAME:-Kiro}"
-    printf "  Your name: "; read -r OWNER_NAME < /dev/tty
+    printf "  Your name: "; read -r OWNER_NAME <&3
     OWNER_NAME="${OWNER_NAME:-Boss}"
 
     cat > "$ENV_FILE" <<EOF

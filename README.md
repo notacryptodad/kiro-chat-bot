@@ -33,7 +33,7 @@ kiro-cli acp         ← Code generation, file I/O, terminal execution
 ## Setup
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/notacryptodad/kiro-chat-bot/main/install.sh | bash
+bash <(curl -fsSL https://raw.githubusercontent.com/notacryptodad/kiro-chat-bot/main/install.sh)
 ```
 
 The installer will:
