@@ -49,6 +49,11 @@ class KiroBridge:
         with self._acp_lock:
             if self._acp is not None and self._acp.is_running():
                 return
+            if self._acp is not None:
+                log.warning("🔄 ACP process died, restarting...")
+                self._acp = None
+                with self._sessions_lock:
+                    self._sessions.clear()
             self._acp = ACPClient(cli_path=KIRO_CLI_PATH)
             self._acp.start(cwd=WORKING_DIR)
             self._acp.on_permission_request(lambda req: "allow_once")
