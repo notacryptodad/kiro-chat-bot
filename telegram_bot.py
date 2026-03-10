@@ -2,6 +2,7 @@
 
 import logging
 import os
+import subprocess
 
 from telegram import Update
 from telegram.ext import (
@@ -43,7 +44,8 @@ async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         "/reset — start a fresh Kiro session\n"
         "/list — show your sessions\n"
         "/resume <n> — resume session by number\n"
-        "/model — show available models"
+        "/model — show available models\n"
+        "/upgrade — pull latest code and restart"
     )
 
 
@@ -97,6 +99,24 @@ async def cmd_resume(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         )
     else:
         await update.message.reply_text("❌ Failed to resume session.")
+
+
+async def cmd_upgrade(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    if not _is_allowed(update.effective_user.id):
+        await update.message.reply_text("⛔ Not authorized.")
+        return
+    bot_dir = os.path.dirname(os.path.abspath(__file__))
+    msg = await update.message.reply_text("⬆️ Pulling latest code...")
+    try:
+        r = subprocess.run(
+            ["git", "pull"], cwd=bot_dir,
+            capture_output=True, text=True, timeout=30,
+        )
+        output = r.stdout.strip() or r.stderr.strip()
+        await msg.edit_text(f"⬆️ git pull:\n{output}\n\n🔄 Restarting...")
+        subprocess.Popen(["systemctl", "--user", "restart", "kiro-chat-bot"])
+    except Exception as e:
+        await msg.edit_text(f"❌ Upgrade failed: {e}")
 
 
 async def cmd_model(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
@@ -169,6 +189,7 @@ def main():
     app.add_handler(CommandHandler("list", cmd_list))
     app.add_handler(CommandHandler("resume", cmd_resume))
     app.add_handler(CommandHandler("model", cmd_model))
+    app.add_handler(CommandHandler("upgrade", cmd_upgrade))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     log.info("🚀 Telegram bot starting...")
