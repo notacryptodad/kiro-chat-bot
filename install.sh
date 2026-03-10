@@ -95,17 +95,17 @@ else
     echo ""
     echo "  Get a bot token from https://t.me/BotFather"
     echo ""
-    read -rp "  Telegram Bot Token: " TG_TOKEN
+    read -rp "  Telegram Bot Token: " TG_TOKEN < /dev/tty
     [ -n "$TG_TOKEN" ] || fail "Token cannot be empty"
 
-    read -rp "  Allowed user IDs (comma-separated, blank=all): " ALLOWED_IDS
-    read -rp "  Working directory for Kiro [$HOME/projects]: " WORK_DIR
+    read -rp "  Allowed user IDs (comma-separated, blank=all): " ALLOWED_IDS < /dev/tty
+    read -rp "  Working directory for Kiro [$HOME/projects]: " WORK_DIR < /dev/tty
     WORK_DIR="${WORK_DIR:-$HOME/projects}"
     mkdir -p "$WORK_DIR"
 
-    read -rp "  Bot name [Kiro]: " BOT_DISPLAY_NAME
+    read -rp "  Bot name [Kiro]: " BOT_DISPLAY_NAME < /dev/tty
     BOT_DISPLAY_NAME="${BOT_DISPLAY_NAME:-Kiro}"
-    read -rp "  Your name: " OWNER_NAME
+    read -rp "  Your name: " OWNER_NAME < /dev/tty
     OWNER_NAME="${OWNER_NAME:-Boss}"
 
     cat > "$ENV_FILE" <<EOF
