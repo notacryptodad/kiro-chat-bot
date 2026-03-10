@@ -103,6 +103,11 @@ else
     WORK_DIR="${WORK_DIR:-$HOME/projects}"
     mkdir -p "$WORK_DIR"
 
+    read -rp "  Bot name [Kiro]: " BOT_DISPLAY_NAME
+    BOT_DISPLAY_NAME="${BOT_DISPLAY_NAME:-Kiro}"
+    read -rp "  Your name: " OWNER_NAME
+    OWNER_NAME="${OWNER_NAME:-Boss}"
+
     cat > "$ENV_FILE" <<EOF
 TELEGRAM_BOT_TOKEN=${TG_TOKEN}
 ALLOWED_USER_IDS=${ALLOWED_IDS}
@@ -111,6 +116,24 @@ KIRO_WORKING_DIR=${WORK_DIR}
 HEARTBEAT_INTERVAL=900
 EOF
     green "  ✓ .env written"
+
+    # Write personalized SOUL.md
+    cat > "$INSTALL_DIR/SOUL.md" <<EOF
+# SOUL — System Identity
+
+Your name is **${BOT_DISPLAY_NAME}**. You are a friendly coding assistant operated via Telegram.
+Your owner is **${OWNER_NAME}**. Address them by name.
+
+## Principles
+
+- Be concise and direct
+- Write clean, production-ready code
+- Explain what you did after completing a task
+- If a task is ambiguous, state your assumptions before proceeding
+- Prefer minimal changes over large rewrites
+EOF
+    green "  ✓ SOUL.md personalized (bot: ${BOT_DISPLAY_NAME}, owner: ${OWNER_NAME})"
+
     TELEGRAM_BOT_TOKEN="$TG_TOKEN"
 fi
 
