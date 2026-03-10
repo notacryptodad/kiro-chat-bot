@@ -14,9 +14,9 @@ bold()  { printf '\033[1m%s\033[0m\n' "$*"; }
 
 header() {
     echo ""
-    bold "╔══════════════════════════════════════╗"
-    bold "║   Kiro CLI Telegram Bot v${VERSION}    ║"
-    bold "╚══════════════════════════════════════╝"
+    bold "╔════════════════════════════════════════╗"
+    bold "║   Kiro CLI Telegram Bot v${VERSION}         ║"
+    bold "╚════════════════════════════════════════╝"
     echo ""
 }
 
@@ -206,9 +206,9 @@ fi
 green "  ✓ Service installed and started"
 
 echo ""
-bold "╔══════════════════════════════════════╗"
-bold "║     Setup complete! v${VERSION} 🚀     ║"
-bold "╚══════════════════════════════════════╝"
+bold "╔════════════════════════════════════════╗"
+bold "║     Setup complete! v${VERSION} 🚀          ║"
+bold "╚════════════════════════════════════════╝"
 echo ""
 echo "  Bot:     @${BOT_NAME}"
 echo "  Install: $INSTALL_DIR"
