@@ -14,7 +14,6 @@ from telegram.ext import (
 
 from kiro_bridge import KiroBridge
 from heartbeat import Heartbeat
-from kiro_bridge import WORKING_DIR
 
 logging.basicConfig(
     format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
@@ -26,7 +25,7 @@ TELEGRAM_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
 ALLOWED_USERS = os.environ.get("ALLOWED_USER_IDS", "")  # comma-separated
 
 bridge = KiroBridge()
-heartbeat = Heartbeat(bridge, WORKING_DIR)
+heartbeat = Heartbeat(bridge)
 
 
 def _is_allowed(user_id: int) -> bool:

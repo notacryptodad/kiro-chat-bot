@@ -9,8 +9,9 @@ from datetime import datetime, timezone
 log = logging.getLogger(__name__)
 
 HEARTBEAT_INTERVAL = int(os.environ.get("HEARTBEAT_INTERVAL", "900"))  # seconds
-HEARTBEAT_FILE = "heartbeat.md"
-HEARTBEAT_LOG = "heartbeat_log.md"
+BOT_DIR = os.path.dirname(os.path.abspath(__file__))
+HEARTBEAT_FILE = os.path.join(BOT_DIR, "heartbeat.md")
+HEARTBEAT_LOG = os.path.join(BOT_DIR, "heartbeat_log.md")
 
 
 class Heartbeat:
@@ -20,11 +21,10 @@ class Heartbeat:
     - Otherwise → execute content as a Kiro task, log result, reset file to "sleep".
     """
 
-    def __init__(self, bridge, working_dir: str):
+    def __init__(self, bridge):
         self._bridge = bridge
-        self._dir = working_dir
-        self._heartbeat_path = os.path.join(working_dir, HEARTBEAT_FILE)
-        self._log_path = os.path.join(working_dir, HEARTBEAT_LOG)
+        self._heartbeat_path = HEARTBEAT_FILE
+        self._log_path = HEARTBEAT_LOG
         self._stop_event = threading.Event()
         self._thread = None
 
