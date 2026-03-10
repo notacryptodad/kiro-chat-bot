@@ -26,6 +26,7 @@ header() {
 }
 
 fail() { red "✗ $*"; exit 1; }
+strip_quotes() { echo "$1" | sed "s/^['\"]//;s/['\"]$//"; }
 
 # ── Header ────────────────────────────────────────────────
 header
@@ -101,11 +102,13 @@ else
     echo "  Get a bot token from https://t.me/BotFather"
     echo ""
     printf "  Telegram Bot Token: "; read -r TG_TOKEN <&3
+    TG_TOKEN=$(strip_quotes "$TG_TOKEN")
     [ -n "$TG_TOKEN" ] || fail "Token cannot be empty"
 
     printf "  Allowed user IDs (comma-separated, blank=all): "; read -r ALLOWED_IDS <&3
+    ALLOWED_IDS=$(strip_quotes "$ALLOWED_IDS")
     printf "  Working directory for Kiro [$HOME/projects]: "; read -r WORK_DIR <&3
-    WORK_DIR="${WORK_DIR:-$HOME/projects}"
+    WORK_DIR=$(strip_quotes "${WORK_DIR:-$HOME/projects}")
     mkdir -p "$WORK_DIR"
 
     printf "  Bot name [Kiro]: "; read -r BOT_DISPLAY_NAME <&3
