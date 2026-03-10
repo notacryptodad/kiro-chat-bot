@@ -37,7 +37,7 @@ def _is_allowed(user_id: int) -> bool:
 
 async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "👋 Kiro CLI Bot ready!\n"
+        "👋 Kiro CLI Bot v1.0.0 ready!\n"
         "Send me any coding task and I'll execute it via Kiro.\n\n"
         "Commands:\n"
         "/start — this message\n"

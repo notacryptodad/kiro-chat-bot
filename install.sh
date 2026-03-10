@@ -5,6 +5,7 @@ set -euo pipefail
 REPO="https://github.com/notacryptodad/kiro-chat-bot.git"
 INSTALL_DIR="$HOME/.kiro-chat-bot"
 SERVICE_NAME="kiro-chat-bot"
+VERSION="1.0.0"
 
 red()   { printf '\033[0;31m%s\033[0m\n' "$*"; }
 green() { printf '\033[0;32m%s\033[0m\n' "$*"; }
@@ -14,7 +15,7 @@ bold()  { printf '\033[1m%s\033[0m\n' "$*"; }
 header() {
     echo ""
     bold "╔══════════════════════════════════════╗"
-    bold "║      Kiro CLI Telegram Bot Setup     ║"
+    bold "║   Kiro CLI Telegram Bot v${VERSION}    ║"
     bold "╚══════════════════════════════════════╝"
     echo ""
 }
@@ -183,7 +184,7 @@ green "  ✓ Service installed and started"
 
 echo ""
 bold "╔══════════════════════════════════════╗"
-bold "║          Setup complete! 🚀          ║"
+bold "║     Setup complete! v${VERSION} 🚀     ║"
 bold "╚══════════════════════════════════════╝"
 echo ""
 echo "  Bot:     @${BOT_NAME}"
