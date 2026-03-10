@@ -61,9 +61,9 @@ fi
 green "  ✓ kiro-cli ($KIRO_PATH)"
 
 # Check kiro-cli auth
-if ! "$KIRO_PATH" auth status &>/dev/null; then
+if ! "$KIRO_PATH" whoami &>/dev/null; then
     yellow "  ⚠ kiro-cli not logged in — launching login..."
-    "$KIRO_PATH" auth login || fail "kiro-cli login failed"
+    "$KIRO_PATH" login || fail "kiro-cli login failed"
 fi
 green "  ✓ kiro-cli authenticated"
 
