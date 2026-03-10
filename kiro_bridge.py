@@ -9,6 +9,7 @@ from acp_client import ACPClient, PromptResult
 
 KIRO_CLI_PATH = os.environ.get("KIRO_CLI_PATH", "kiro-cli")
 WORKING_DIR = os.environ.get("KIRO_WORKING_DIR", os.getcwd())
+os.makedirs(WORKING_DIR, exist_ok=True)
 CONTEXT_THRESHOLD = 80  # start new session when context usage exceeds this %
 SOUL_PATH = os.path.join(WORKING_DIR, "SOUL.md")
 
