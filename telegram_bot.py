@@ -42,7 +42,8 @@ async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         "/start — this message\n"
         "/reset — start a fresh Kiro session\n"
         "/list — show your sessions\n"
-        "/resume <n> — resume session by number"
+        "/resume <n> — resume session by number\n"
+        "/model — show available models"
     )
 
 
@@ -98,6 +99,24 @@ async def cmd_resume(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Failed to resume session.")
 
 
+async def cmd_model(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    models = bridge.list_models()
+    if not models:
+        await update.message.reply_text("No model info available yet. Send a message first.")
+        return
+    current = models.get("currentModelId", "unknown")
+    available = models.get("availableModels", [])
+    lines = []
+    for m in available:
+        marker = " ✅" if m["modelId"] == current else ""
+        lines.append(f"• `{m['modelId']}`{marker}\n  {m['description']}")
+    await update.message.reply_text(
+        f"🤖 Current model: `{current}`\n\n" + "\n".join(lines)
+        + "\n\n⚠️ Model switching via ACP is not yet supported by Kiro CLI.",
+        parse_mode="Markdown",
+    )
+
+
 async def handle_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     if not _is_allowed(user.id):
@@ -149,6 +168,7 @@ def main():
     app.add_handler(CommandHandler("reset", cmd_reset))
     app.add_handler(CommandHandler("list", cmd_list))
     app.add_handler(CommandHandler("resume", cmd_resume))
+    app.add_handler(CommandHandler("model", cmd_model))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     log.info("🚀 Telegram bot starting...")

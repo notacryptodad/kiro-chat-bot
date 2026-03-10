@@ -54,6 +54,7 @@ class ACPClient:
         self._session_updates: dict[str, list] = {}
         self._permission_handler: Callable | None = None
         self._session_metadata: dict[str, dict] = {}
+        self._models: dict = {}  # from session/new: {currentModelId, availableModels}
         self._running = False
 
     # ── Lifecycle ─────────────────────────────────────────
@@ -125,6 +126,7 @@ class ACPClient:
         session_id = result.get("sessionId", "")
         if not session_id:
             raise RuntimeError(f"session/new returned no sessionId: {result}")
+        self._models = result.get("models", {})
         return session_id, result.get("modes", {})
 
     def session_load(self, session_id: str, cwd: str) -> dict:

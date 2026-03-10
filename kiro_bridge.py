@@ -98,6 +98,11 @@ class KiroBridge:
             },
         }
 
+    def list_models(self) -> dict:
+        """Return available models and current model from ACP."""
+        acp = self._ensure_acp()
+        return acp._models
+
     def list_sessions(self, user_key: str) -> list[dict]:
         """Return all sessions for a user with metadata."""
         with self._sessions_lock:
