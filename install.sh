@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# curl -fsSL https://raw.githubusercontent.com/user/kiro-chat-bot/main/install.sh | bash
+# curl -fsSL https://raw.githubusercontent.com/notacryptodad/kiro-chat-bot/main/install.sh | bash
 set -euo pipefail
 
-REPO="https://github.com/user/kiro-chat-bot.git"
+REPO="https://github.com/notacryptodad/kiro-chat-bot.git"
 INSTALL_DIR="$HOME/.kiro-chat-bot"
 SERVICE_NAME="kiro-chat-bot"
 
