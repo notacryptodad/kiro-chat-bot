@@ -1,0 +1,6 @@
+.env
+heartbeat_log.md
+__pycache__/
+*.pyc
+.venv/
+uv.lock
