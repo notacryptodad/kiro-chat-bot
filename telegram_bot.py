@@ -366,7 +366,7 @@ async def cmd_session_prompt(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"```\n{text}\n```", parse_mode="Markdown")
 
 
-
+def _acquire_lock():
     """Ensure only one bot instance runs. Exit if another is running."""
     global _lock_fd
     _lock_fd = open(LOCK_FILE, "w")
