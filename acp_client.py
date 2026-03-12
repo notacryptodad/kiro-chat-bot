@@ -42,9 +42,10 @@ class PermissionRequest:
     title: str
     options: list
 
-    class KiroAuthError(Exception):
-        """Raised when kiro-cli requires authentication."""
-        pass
+
+class KiroAuthError(Exception):
+    """Raised when kiro-cli requires authentication."""
+    pass
 
 
 class ACPClient:
