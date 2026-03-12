@@ -28,6 +28,9 @@ logging.basicConfig(
         logging.FileHandler("/tmp/kiro-chat-bot.log"),
     ]
 )
+logging.getLogger("httpx").addFilter(
+    type("", (logging.Filter,), {"filter": lambda self, r: "getUpdates" not in r.getMessage()})()
+)
 log = logging.getLogger(__name__)
 
 TELEGRAM_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
