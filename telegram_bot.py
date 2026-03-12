@@ -189,6 +189,9 @@ async def cmd_upgrade(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 
 async def cmd_model(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    user_key = str(update.effective_user.id)
+    # Ensure a session exists so models are discovered
+    bridge._get_session(user_key)
     models = bridge.list_models()
     if not models:
         await update.message.reply_text("No model info available yet. Send a message first.")
