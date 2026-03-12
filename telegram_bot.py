@@ -35,6 +35,20 @@ logging.getLogger("httpx").addFilter(
 )
 log = logging.getLogger(__name__)
 
+# Read version info from install.sh
+BOT_DIR = os.path.dirname(os.path.abspath(__file__))
+VERSION = "unknown"
+BUILD = "unknown"
+try:
+    with open(os.path.join(BOT_DIR, "install.sh"), "r") as f:
+        for line in f:
+            if line.startswith("VERSION="):
+                VERSION = line.split("=", 1)[1].strip().strip('"')
+            elif line.startswith("BUILD="):
+                BUILD = line.split("=", 1)[1].strip().strip('"')
+except Exception:
+    pass
+
 TELEGRAM_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
 ALLOWED_USERS = os.environ.get("ALLOWED_USER_IDS", "")  # comma-separated
 
@@ -436,7 +450,7 @@ def main():
         log.error("Unhandled exception: %s", context.error, exc_info=context.error)
     app.add_error_handler(error_handler)
 
-    log.info("🚀 Telegram bot starting...")
+    log.info("🚀 Telegram bot starting... (v%s build %s)", VERSION, BUILD)
     _acquire_lock()
     
     # Start watchdog thread
