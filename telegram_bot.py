@@ -325,7 +325,7 @@ async def handle_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 
 async def _on_startup(app: Application):
-    """Send notification if bot was offline and set bot commands."""
+    """Send notification on startup and set bot commands."""
     # Set bot command menu
     from telegram import BotCommand
     commands = [
@@ -339,15 +339,14 @@ async def _on_startup(app: Application):
     ]
     await app.bot.set_my_commands(commands)
     
-    if _was_offline() and ALLOWED_USERS:
+    if ALLOWED_USERS:
+        was_offline = _was_offline()
+        msg = "✅ Bot is back online and ready to work!" if was_offline else "🔄 Bot restarted and ready!"
         for user_id in ALLOWED_USERS.split(","):
             user_id = user_id.strip()
             if user_id:
                 try:
-                    await app.bot.send_message(
-                        chat_id=int(user_id),
-                        text="✅ Bot is back online and ready to work!"
-                    )
+                    await app.bot.send_message(chat_id=int(user_id), text=msg)
                 except Exception as e:
                     log.warning(f"Failed to notify user {user_id}: {e}")
     _mark_online()
