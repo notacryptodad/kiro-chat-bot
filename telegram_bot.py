@@ -7,6 +7,8 @@ import socket
 import subprocess
 import sys
 import threading
+from collections import defaultdict
+from queue import Queue
 
 from telegram import Update
 from telegram.ext import (
@@ -38,9 +40,13 @@ ALLOWED_USERS = os.environ.get("ALLOWED_USER_IDS", "")  # comma-separated
 
 bridge = KiroBridge()
 heartbeat = Heartbeat(bridge)
+_user_queues: dict[str, Queue] = defaultdict(Queue)
+_user_workers: dict[str, threading.Thread] = {}
 
 STATE_FILE = os.path.join(os.path.dirname(__file__), ".bot_state")
 ENV_FILE = os.path.join(os.path.dirname(__file__), ".env")
+LOCK_FILE = "/tmp/kiro-chat-bot.lock"
+_lock_fd = None
 
 
 def _update_env(key: str, value: str):
@@ -280,55 +286,86 @@ async def handle_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     user_key = str(user.id)
     text = update.message.text
     
-    # Start typing indicator loop
-    typing_task = ctx.application.create_task(
-        _keep_typing(update.message.chat_id, ctx.application.bot)
-    )
+    # Queue the message for this user
+    _user_queues[user_key].put((text, update, ctx))
+    
+    # Start worker thread if not running
+    if user_key not in _user_workers or not _user_workers[user_key].is_alive():
+        worker = threading.Thread(target=_process_user_queue, args=(user_key,), daemon=True)
+        _user_workers[user_key] = worker
+        worker.start()
 
-    try:
-        import asyncio
-        loop = asyncio.get_event_loop()
-        result = await loop.run_in_executor(None, lambda: bridge.prompt(text, user_key=user_key))
-        typing_task.cancel()  # Stop typing indicator
 
-        response_parts = []
-        if result["text"]:
-            response_parts.append(result["text"])
-
-        if result["tool_calls"]:
-            actions = "\n".join(
-                f"  • [{tc['status']}] {tc['title']}" for tc in result["tool_calls"]
+def _process_user_queue(user_key: str):
+    """Process messages from a user's queue sequentially."""
+    import asyncio
+    queue = _user_queues[user_key]
+    
+    while not queue.empty():
+        text, update, ctx = queue.get()
+        
+        # Start typing indicator
+        async def send_typing():
+            typing_task = ctx.application.create_task(
+                _keep_typing(update.message.chat_id, ctx.application.bot)
             )
-            response_parts.append(f"\n🔧 Actions:\n{actions}")
+            return typing_task
+        
+        typing_task = asyncio.run_coroutine_threadsafe(send_typing(), ctx.application.loop).result()
+        
+        try:
+            result = bridge.prompt(text, user_key=user_key)
+            typing_task.cancel()
 
-        usage = result["usage"]
-        model = bridge.list_models().get("currentModelId", "")
-        model_tag = f" | 🤖 {model}" if model else ""
-        response_parts.append(
-            f"\n💳 Credits: {usage['kiro_credits']:.1f} | "
-            f"Context: {usage['kiro_context_pct']:.0f}%{model_tag}"
-        )
+            response_parts = []
+            if result["text"]:
+                response_parts.append(result["text"])
 
-        response = "\n".join(response_parts) or "(empty response)"
+            if result["tool_calls"]:
+                actions = "\n".join(
+                    f"  • [{tc['status']}] {tc['title']}" for tc in result["tool_calls"]
+                )
+                response_parts.append(f"\n🔧 Actions:\n{actions}")
 
-        # Telegram message limit is 4096 chars
-        for i in range(0, len(response), 4096):
-            await update.message.reply_text(response[i : i + 4096])
+            usage = result["usage"]
+            model = bridge.list_models().get("currentModelId", "")
+            model_tag = f" | 🤖 {model}" if model else ""
+            response_parts.append(
+                f"\n💳 Credits: {usage['kiro_credits']:.1f} | "
+                f"Context: {usage['kiro_context_pct']:.0f}%{model_tag}"
+            )
 
-    except KiroAuthError:
-        typing_task.cancel()
-        await update.message.reply_text(
-            "🔐 Kiro CLI authentication required.\n\n"
-            "Please run `kiro-cli login` on the host machine "
-            "and restart the container to refresh credentials."
-        )
-    except TimeoutError:
-        typing_task.cancel()
-        await update.message.reply_text("⏰ Task timed out. Try a smaller request.")
-    except Exception as e:
-        typing_task.cancel()
-        log.exception("Error processing message from %s", user.id)
-        await update.message.reply_text(f"❌ Error: {e}")
+            response = "\n".join(response_parts) or "(empty response)"
+
+            # Send response
+            async def send_response():
+                for i in range(0, len(response), 4096):
+                    await update.message.reply_text(response[i : i + 4096])
+            
+            asyncio.run_coroutine_threadsafe(send_response(), ctx.application.loop).result()
+
+        except KiroAuthError:
+            typing_task.cancel()
+            async def send_auth_error():
+                await update.message.reply_text(
+                    "🔐 Kiro CLI authentication required.\n\n"
+                    "Please run `kiro-cli login` on the host machine "
+                    "and restart the container to refresh credentials."
+                )
+            asyncio.run_coroutine_threadsafe(send_auth_error(), ctx.application.loop).result()
+        except TimeoutError:
+            typing_task.cancel()
+            async def send_timeout():
+                await update.message.reply_text("⏰ Task timed out. Try a smaller request.")
+            asyncio.run_coroutine_threadsafe(send_timeout(), ctx.application.loop).result()
+        except Exception as e:
+            typing_task.cancel()
+            log.exception("Error processing message from %s", user_key)
+            async def send_error():
+                await update.message.reply_text(f"❌ Error: {e}")
+            asyncio.run_coroutine_threadsafe(send_error(), ctx.application.loop).result()
+        finally:
+            queue.task_done()
 
 
 async def _on_startup(app: Application):
@@ -357,10 +394,6 @@ async def _on_startup(app: Application):
                 except Exception as e:
                     log.warning(f"Failed to notify user {user_id}: {e}")
     _mark_online()
-
-
-LOCK_FILE = os.path.join(os.path.dirname(__file__), ".bot.lock")
-_lock_fd = None
 
 
 async def cmd_session_prompt(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
