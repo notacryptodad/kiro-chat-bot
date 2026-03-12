@@ -224,7 +224,9 @@ async def handle_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     )
 
     try:
-        result = bridge.prompt(text, user_key=user_key)
+        import asyncio
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(None, lambda: bridge.prompt(text, user_key=user_key))
         typing_task.cancel()  # Stop typing indicator
 
         response_parts = []
