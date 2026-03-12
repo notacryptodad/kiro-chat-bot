@@ -115,6 +115,11 @@ class ACPClient:
                 self._proc.wait(timeout=5)
             except subprocess.TimeoutExpired:
                 self._proc.kill()
+        # Kill any orphaned kiro-cli acp processes
+        try:
+            subprocess.run(["pkill", "-9", "-f", "kiro-cli acp"], capture_output=True)
+        except Exception:
+            pass
 
     def _kill_children(self, parent_pid: int):
         try:
