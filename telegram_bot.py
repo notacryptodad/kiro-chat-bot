@@ -211,7 +211,10 @@ async def cmd_upgrade(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         )
         output = r.stdout.strip() or r.stderr.strip()
         await msg.edit_text(f"⬆️ git pull:\n{output}\n\n🔄 Restarting...")
-        subprocess.Popen(["systemctl", "--user", "restart", "kiro-chat-bot"])
+        if os.getenv("INVOCATION_ID"):
+            subprocess.Popen(["systemctl", "--user", "restart", "kiro-chat-bot"])
+        else:
+            os.execv(sys.executable, [sys.executable] + sys.argv)
     except Exception as e:
         await msg.edit_text(f"❌ Upgrade failed: {e}")
 
