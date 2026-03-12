@@ -208,8 +208,6 @@ async def cmd_model(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 async def handle_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
-    log.info(f"📨 Message from {user.id}: {update.message.text[:50]}")
-    
     if not _is_allowed(user.id):
         await update.message.reply_text("⛔ Not authorized.")
         return
@@ -217,7 +215,6 @@ async def handle_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     user_key = str(user.id)
     text = update.message.text
     
-    log.info(f"🔄 Starting typing indicator for chat {update.message.chat_id}")
     # Start typing indicator loop
     typing_task = ctx.application.create_task(
         _keep_typing(update.message.chat_id, ctx.application.bot)

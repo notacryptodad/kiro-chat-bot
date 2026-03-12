@@ -192,13 +192,16 @@ After=network-online.target
 Wants=network-online.target
 
 [Service]
-Type=exec
+Type=simple
 WorkingDirectory=${INSTALL_DIR}
 ExecStart=${UV_PATH} run python telegram_bot.py
+ExecStopPost=/bin/bash -c 'pkill -9 -f "kiro-cli acp" 2>/dev/null; pkill -9 -f "python.*telegram_bot" 2>/dev/null; true'
 Restart=on-failure
 RestartSec=10
 WatchdogSec=60
-NotifyAccess=main
+KillMode=control-group
+KillSignal=SIGTERM
+TimeoutStopSec=15
 $(echo -e "$ENV_LINES")
 [Install]
 WantedBy=default.target
@@ -206,6 +209,11 @@ EOF
 
 systemctl --user daemon-reload
 systemctl --user enable "$SERVICE_NAME" --quiet
+
+# Kill any stale processes before (re)starting
+pkill -9 -f "python.*telegram_bot" 2>/dev/null || true
+pkill -9 -f "kiro-cli acp" 2>/dev/null || true
+sleep 2
 
 # Check if service was already running
 if systemctl --user is-active --quiet "$SERVICE_NAME"; then
