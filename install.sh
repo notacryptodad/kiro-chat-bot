@@ -9,7 +9,7 @@ REPO="https://github.com/notacryptodad/kiro-chat-bot.git"
 INSTALL_DIR="$HOME/.kiro-chat-bot"
 SERVICE_NAME="kiro-chat-bot"
 VERSION="1.0.0"
-BUILD="2026-03-10"
+BUILD="20260312155428"
 
 red()   { printf '\033[0;31m%s\033[0m\n' "$*"; }
 green() { printf '\033[0;32m%s\033[0m\n' "$*"; }
