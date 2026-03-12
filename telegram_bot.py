@@ -258,9 +258,11 @@ async def handle_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             response_parts.append(f"\n🔧 Actions:\n{actions}")
 
         usage = result["usage"]
+        model = bridge.list_models().get("currentModelId", "")
+        model_tag = f" | 🤖 {model}" if model else ""
         response_parts.append(
             f"\n💳 Credits: {usage['kiro_credits']:.1f} | "
-            f"Context: {usage['kiro_context_pct']:.0f}%"
+            f"Context: {usage['kiro_context_pct']:.0f}%{model_tag}"
         )
 
         response = "\n".join(response_parts) or "(empty response)"
