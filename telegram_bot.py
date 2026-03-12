@@ -53,7 +53,8 @@ TELEGRAM_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
 ALLOWED_USERS = os.environ.get("ALLOWED_USER_IDS", "")  # comma-separated
 
 bridge = KiroBridge()
-heartbeat = Heartbeat(bridge)
+heartbeat_bridge = KiroBridge()  # Separate instance for heartbeat
+heartbeat = Heartbeat(heartbeat_bridge)
 _user_queues: dict[str, Queue] = defaultdict(Queue)
 _user_workers: dict[str, threading.Thread] = {}
 
