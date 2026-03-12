@@ -125,6 +125,7 @@ def _mark_offline():
 
 
 async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    log.info("/start from %s", update.effective_user.id)
     await update.message.reply_text(
         "👋 Kiro CLI Bot v1.0.0 ready!\n"
         "Send me any coding task and I'll execute it via Kiro.\n\n"
@@ -140,6 +141,7 @@ async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 async def cmd_reset(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     user_key = str(update.effective_user.id)
+    log.info("/reset from %s", user_key)
     with bridge._sessions_lock:
         bridge._sessions.pop(user_key, None)
     await update.message.reply_text("🔄 Session reset. Next message starts fresh.")
@@ -147,6 +149,7 @@ async def cmd_reset(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 async def cmd_list(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     user_key = str(update.effective_user.id)
+    log.info("/list from %s", user_key)
     sessions = bridge.list_sessions(user_key)
     if not sessions:
         await update.message.reply_text("No sessions yet. Send a message to start one.")
@@ -167,6 +170,7 @@ async def cmd_list(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 async def cmd_resume(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     user_key = str(update.effective_user.id)
+    log.info("/resume %s from %s", ctx.args, user_key)
     args = ctx.args
     sessions = bridge.list_sessions(user_key)
     if not sessions:
@@ -191,6 +195,7 @@ async def cmd_resume(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 
 async def cmd_upgrade(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    log.info("/upgrade from %s", update.effective_user.id)
     if not _is_allowed(update.effective_user.id):
         await update.message.reply_text("⛔ Not authorized.")
         return
@@ -210,7 +215,7 @@ async def cmd_upgrade(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 async def cmd_model(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     user_key = str(update.effective_user.id)
-    # Ensure a session exists so models are discovered
+    log.info("/model %s from %s", ctx.args, user_key)
     import asyncio
     loop = asyncio.get_event_loop()
     await loop.run_in_executor(None, lambda: bridge._get_session(user_key))
