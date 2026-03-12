@@ -5,3 +5,11 @@ requires-python = ">=3.11"
 dependencies = [
     "python-telegram-bot>=21.0",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+]
