@@ -192,11 +192,13 @@ After=network-online.target
 Wants=network-online.target
 
 [Service]
-Type=simple
+Type=exec
 WorkingDirectory=${INSTALL_DIR}
 ExecStart=${UV_PATH} run python telegram_bot.py
 Restart=on-failure
 RestartSec=10
+WatchdogSec=60
+NotifyAccess=main
 $(echo -e "$ENV_LINES")
 [Install]
 WantedBy=default.target
@@ -204,14 +206,20 @@ EOF
 
 systemctl --user daemon-reload
 systemctl --user enable "$SERVICE_NAME" --quiet
-systemctl --user start "$SERVICE_NAME"
+
+# Check if service was already running
+if systemctl --user is-active --quiet "$SERVICE_NAME"; then
+    systemctl --user restart "$SERVICE_NAME"
+    green "  ✓ Service restarted with new code"
+else
+    systemctl --user start "$SERVICE_NAME"
+    green "  ✓ Service installed and started"
+fi
 
 # Enable lingering so it runs without login session
 if command -v loginctl &>/dev/null; then
     loginctl enable-linger "$(whoami)" 2>/dev/null || true
 fi
-
-green "  ✓ Service installed and started"
 
 echo ""
 bold "╔════════════════════════════════════════╗"

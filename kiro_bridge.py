@@ -6,7 +6,7 @@ import logging
 import os
 import threading
 
-from acp_client import ACPClient, PromptResult
+from acp_client import ACPClient, KiroAuthError, PromptResult
 
 KIRO_CLI_PATH = os.environ.get("KIRO_CLI_PATH", "kiro-cli")
 WORKING_DIR = os.environ.get("KIRO_WORKING_DIR", os.getcwd())

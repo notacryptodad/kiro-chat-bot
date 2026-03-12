@@ -1,0 +1,16 @@
+services:
+  kiro-bot:
+    build: .
+    container_name: kiro-chat-bot
+    restart: unless-stopped
+    volumes:
+      # Mount host's kiro-cli + auth credentials (read-only)
+      - ~/.kiro:/root/.kiro:ro
+      # Persistent workspace for Kiro sessions
+      - ./workspace:/workspace
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - ALLOWED_USER_IDS=${ALLOWED_USER_IDS:-}
+      - KIRO_CLI_PATH=/root/.kiro/bin/kiro-cli
+      - KIRO_WORKING_DIR=/workspace
+      - HEARTBEAT_INTERVAL=${HEARTBEAT_INTERVAL:-900}

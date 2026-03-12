@@ -95,6 +95,7 @@ uv run python telegram_bot.py
 - Kiro handles code generation, file writes, and terminal execution
 - Responses include tool call summaries and credit usage
 - Messages over 4096 chars are automatically chunked
+- **Systemd watchdog** monitors process health and restarts if stalled (60s timeout)
 
 ## SOUL.md — System Identity
 

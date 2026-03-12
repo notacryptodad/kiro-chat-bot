@@ -9,6 +9,7 @@ import os
 import signal
 import subprocess
 import threading
+import time
 from dataclasses import dataclass, field
 from typing import Callable
 
@@ -41,6 +42,10 @@ class PermissionRequest:
     title: str
     options: list
 
+    class KiroAuthError(Exception):
+        """Raised when kiro-cli requires authentication."""
+        pass
+
 
 class ACPClient:
     """JSON-RPC 2.0 client that communicates with kiro-cli over stdio."""
@@ -72,6 +77,21 @@ class ACPClient:
         self._running = True
         threading.Thread(target=self._read_loop, daemon=True).start()
         threading.Thread(target=self._read_stderr, daemon=True).start()
+
+        # Check if process died immediately (e.g. auth failure on startup)
+        time.sleep(0.5)
+        if self._proc.poll() is not None:
+            stderr = self._proc.stderr.read().decode(errors="replace")
+            if any(kw in stderr.lower() for kw in ("auth", "login", "credential",
+                                                     "unauthorized", "not logged in",
+                                                     "sign in")):
+                raise KiroAuthError(
+                    f"kiro-cli failed to start (auth required): {stderr.strip()}"
+                )
+            raise RuntimeError(
+                f"kiro-cli exited immediately (code {self._proc.returncode}): "
+                f"{stderr.strip()}"
+            )
 
         result = self._send_request("initialize", {
             "protocolVersion": 1,
@@ -214,10 +234,30 @@ class ACPClient:
             raise TimeoutError(f"{method} (id={req_id}) timed out after {timeout}s")
         self._pending.pop(req_id, None)
         if len(holder) == 2 and holder[0] is None:
-            raise RuntimeError(
-                f"RPC error {holder[1].get('code')}: {holder[1].get('message')}"
-            )
+            error = holder[1]
+            code = error.get("code", 0)
+            message = error.get("message", "")
+            if self._is_auth_error(code, message):
+                raise KiroAuthError(
+                    "kiro-cli authentication required. "
+                    "Please run 'kiro-cli login' on the host and ensure "
+                    "~/.kiro is mounted into the container."
+                )
+            raise RuntimeError(f"RPC error {code}: {message}")
         return holder[0] if holder else {}
+    @staticmethod
+    def _is_auth_error(code: int, message: str) -> bool:
+        """Detect authentication-related RPC errors from kiro-cli."""
+        msg_lower = message.lower()
+        auth_keywords = ("auth", "login", "credential", "token expired",
+                         "unauthorized", "unauthenticated", "not logged in",
+                         "session expired", "sign in")
+        if any(kw in msg_lower for kw in auth_keywords):
+            return True
+        # Common HTTP-style auth error codes
+        if code in (401, 403, -32001):
+            return True
+        return False
 
     def _read_loop(self):
         while self._running:

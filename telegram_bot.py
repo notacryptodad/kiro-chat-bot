@@ -2,7 +2,9 @@
 
 import logging
 import os
+import socket
 import subprocess
+import threading
 
 from telegram import Update
 from telegram.ext import (
@@ -15,10 +17,15 @@ from telegram.ext import (
 
 from kiro_bridge import KiroBridge
 from heartbeat import Heartbeat
+from acp_client import KiroAuthError
 
 logging.basicConfig(
     format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
     level=logging.INFO,
+    handlers=[
+        logging.FileHandler("/tmp/kiro-chat-bot.log"),
+        logging.StreamHandler()
+    ]
 )
 log = logging.getLogger(__name__)
 
@@ -28,11 +35,73 @@ ALLOWED_USERS = os.environ.get("ALLOWED_USER_IDS", "")  # comma-separated
 bridge = KiroBridge()
 heartbeat = Heartbeat(bridge)
 
+STATE_FILE = os.path.join(os.path.dirname(__file__), ".bot_state")
+
+
+async def _keep_typing(chat_id: int, bot):
+    """Send typing indicator every 4 seconds until cancelled."""
+    import asyncio
+    while True:
+        try:
+            await bot.send_chat_action(chat_id=chat_id, action="typing")
+            await asyncio.sleep(4)
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            log.debug(f"Typing indicator failed: {e}")
+            break
+
+
+def _sd_notify(msg: str):
+    """Send notification to systemd via NOTIFY_SOCKET."""
+    socket_path = os.environ.get("NOTIFY_SOCKET")
+    if not socket_path:
+        return
+    try:
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
+        if socket_path.startswith("@"):
+            socket_path = "\0" + socket_path[1:]
+        sock.sendto(msg.encode(), socket_path)
+        sock.close()
+    except Exception as e:
+        log.debug(f"sd_notify failed: {e}")
+
+
+def _watchdog_thread():
+    """Periodically notify systemd that we're alive."""
+    interval = int(os.environ.get("WATCHDOG_USEC", 0)) / 2_000_000  # half of watchdog interval
+    if interval <= 0:
+        return
+    log.info(f"Watchdog enabled: notifying every {interval:.1f}s")
+    while True:
+        threading.Event().wait(interval)
+        _sd_notify("WATCHDOG=1")
+
 
 def _is_allowed(user_id: int) -> bool:
     if not ALLOWED_USERS:
         return True
     return str(user_id) in {u.strip() for u in ALLOWED_USERS.split(",") if u.strip()}
+
+
+def _was_offline() -> bool:
+    """Check if bot was previously offline."""
+    if os.path.exists(STATE_FILE):
+        with open(STATE_FILE) as f:
+            return f.read().strip() == "offline"
+    return False
+
+
+def _mark_online():
+    """Mark bot as online."""
+    with open(STATE_FILE, "w") as f:
+        f.write("online")
+
+
+def _mark_offline():
+    """Mark bot as offline."""
+    with open(STATE_FILE, "w") as f:
+        f.write("offline")
 
 
 async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
@@ -145,10 +214,15 @@ async def handle_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
     user_key = str(user.id)
     text = update.message.text
-    thinking_msg = await update.message.reply_text("⏳ Working on it...")
+    
+    # Start typing indicator loop
+    typing_task = ctx.application.create_task(
+        _keep_typing(update.message.chat_id, ctx.application.bot)
+    )
 
     try:
         result = bridge.prompt(text, user_key=user_key)
+        typing_task.cancel()  # Stop typing indicator
 
         response_parts = []
         if result["text"]:
@@ -170,16 +244,50 @@ async def handle_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
         # Telegram message limit is 4096 chars
         for i in range(0, len(response), 4096):
-            if i == 0:
-                await thinking_msg.edit_text(response[:4096])
-            else:
-                await update.message.reply_text(response[i : i + 4096])
+            await update.message.reply_text(response[i : i + 4096])
 
+    except KiroAuthError:
+        typing_task.cancel()
+        await update.message.reply_text(
+            "🔐 Kiro CLI authentication required.\n\n"
+            "Please run `kiro-cli login` on the host machine "
+            "and restart the container to refresh credentials."
+        )
     except TimeoutError:
-        await thinking_msg.edit_text("⏰ Task timed out. Try a smaller request.")
+        typing_task.cancel()
+        await update.message.reply_text("⏰ Task timed out. Try a smaller request.")
     except Exception as e:
+        typing_task.cancel()
         log.exception("Error processing message from %s", user.id)
-        await thinking_msg.edit_text(f"❌ Error: {e}")
+        await update.message.reply_text(f"❌ Error: {e}")
+
+
+async def _on_startup(app: Application):
+    """Send notification if bot was offline and set bot commands."""
+    # Set bot command menu
+    from telegram import BotCommand
+    commands = [
+        BotCommand("start", "Show welcome message"),
+        BotCommand("reset", "Start a fresh Kiro session"),
+        BotCommand("list", "Show all your sessions"),
+        BotCommand("resume", "Resume session by number"),
+        BotCommand("model", "Show available models"),
+        BotCommand("upgrade", "Pull latest code and restart"),
+    ]
+    await app.bot.set_my_commands(commands)
+    
+    if _was_offline() and ALLOWED_USERS:
+        for user_id in ALLOWED_USERS.split(","):
+            user_id = user_id.strip()
+            if user_id:
+                try:
+                    await app.bot.send_message(
+                        chat_id=int(user_id),
+                        text="✅ Bot is back online and ready to work!"
+                    )
+                except Exception as e:
+                    log.warning(f"Failed to notify user {user_id}: {e}")
+    _mark_online()
 
 
 def main():
@@ -190,11 +298,25 @@ def main():
     app.add_handler(CommandHandler("resume", cmd_resume))
     app.add_handler(CommandHandler("model", cmd_model))
     app.add_handler(CommandHandler("upgrade", cmd_upgrade))
+    app.add_handler(CommandHandler("update", cmd_upgrade))  # alias
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    app.post_init = _on_startup
 
     log.info("🚀 Telegram bot starting...")
+    
+    # Start watchdog thread
+    watchdog = threading.Thread(target=_watchdog_thread, daemon=True)
+    watchdog.start()
+    
+    # Notify systemd we're ready
+    _sd_notify("READY=1")
+    
     heartbeat.start()
-    app.run_polling(allowed_updates=Update.ALL_TYPES)
+    try:
+        app.run_polling(allowed_updates=Update.ALL_TYPES)
+    finally:
+        _sd_notify("STOPPING=1")
+        _mark_offline()
 
 
 if __name__ == "__main__":
