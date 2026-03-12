@@ -26,7 +26,6 @@ logging.basicConfig(
     level=logging.INFO,
     handlers=[
         logging.FileHandler("/tmp/kiro-chat-bot.log"),
-        logging.StreamHandler()
     ]
 )
 log = logging.getLogger(__name__)
