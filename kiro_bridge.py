@@ -149,9 +149,14 @@ class KiroBridge:
         """Switch model for the user's active session."""
         sid = self._sessions.get(user_key)
         if not sid:
+            log.warning("set_model: no active session for %s", user_key)
             return False
         acp = self._ensure_acp()
-        acp.session_set_model(sid, model_id)
+        result = acp.session_set_model(sid, model_id)
+        log.info("🤖 Model switched to %s (result: %s)", model_id, result)
+        # Update local models cache so footer reflects the change
+        if acp._models:
+            acp._models["currentModelId"] = model_id
         return True
 
     def list_sessions(self, user_key: str) -> list[dict]:
