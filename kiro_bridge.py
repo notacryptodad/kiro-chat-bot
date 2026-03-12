@@ -109,6 +109,8 @@ class KiroBridge:
         if KIRO_DEFAULT_MODEL:
             try:
                 acp.session_set_model(session_id, KIRO_DEFAULT_MODEL)
+                if acp._models:
+                    acp._models["currentModelId"] = KIRO_DEFAULT_MODEL
                 log.info("🤖 Set default model: %s", KIRO_DEFAULT_MODEL)
             except Exception as e:
                 log.warning("Failed to set default model: %s", e)
