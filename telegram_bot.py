@@ -160,9 +160,16 @@ async def cmd_list(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     lines = []
     for i, s in enumerate(sessions, 1):
         marker = " ✅" if s["active"] else ""
+        age = s["age_hours"]
+        if age < 1:
+            age_str = f"{int(age * 60)}m"
+        elif age < 24:
+            age_str = f"{int(age)}h"
+        else:
+            age_str = f"{int(age / 24)}d"
         lines.append(
             f"{i}. `{s['session_id'][:12]}…`{marker}\n"
-            f"   Context: {s['context_pct']:.0f}% | Credits: {s['credits']:.1f}"
+            f"   Age: {age_str} | Context: {s['context_pct']:.0f}% | Credits: {s['credits']:.1f}"
         )
     await update.message.reply_text(
         "📋 Your sessions:\n\n" + "\n".join(lines)

@@ -54,6 +54,7 @@ class KiroBridge:
         self._acp_lock = threading.Lock()
         self._sessions: dict[str, str] = {}  # key -> active session_id
         self._session_history: dict[str, list[str]] = {}  # key -> all session_ids
+        self._session_timestamps: dict[str, float] = {}  # session_id -> creation timestamp
         self._sessions_lock = threading.Lock()
         self._soul = _load_soul()
         if self._soul:
@@ -68,6 +69,7 @@ class KiroBridge:
                 data = json.load(f)
             self._sessions = data.get("active", {})
             self._session_history = data.get("history", {})
+            self._session_timestamps = data.get("timestamps", {})
             log.info("📂 Restored %d session(s) from disk", len(self._sessions))
         except (FileNotFoundError, json.JSONDecodeError):
             pass
@@ -75,7 +77,11 @@ class KiroBridge:
     def _save_sessions(self):
         """Persist session IDs to disk."""
         with open(SESSIONS_FILE, "w") as f:
-            json.dump({"active": self._sessions, "history": self._session_history}, f)
+            json.dump({
+                "active": self._sessions,
+                "history": self._session_history,
+                "timestamps": self._session_timestamps
+            }, f)
 
     def _start_acp(self):
         with self._acp_lock:
@@ -117,6 +123,9 @@ class KiroBridge:
 
         acp = self._ensure_acp()
         session_id, _ = acp.session_new(WORKING_DIR)
+        # Track creation time
+        import time
+        self._session_timestamps[session_id] = time.time()
         # Apply default model if configured
         if KIRO_DEFAULT_MODEL:
             try:
@@ -179,18 +188,23 @@ class KiroBridge:
 
     def list_sessions(self, user_key: str) -> list[dict]:
         """Return all sessions for a user with metadata."""
+        import time
         with self._sessions_lock:
             history = self._session_history.get(user_key, [])
             active = self._sessions.get(user_key)
         acp = self._ensure_acp()
         result = []
+        now = time.time()
         for sid in history:
             meta = acp._session_metadata.get(sid, {})
+            created = self._session_timestamps.get(sid, 0)
+            age_hours = (now - created) / 3600 if created else 0
             result.append({
                 "session_id": sid,
                 "active": sid == active,
                 "context_pct": meta.get("contextUsagePercentage", 0.0),
                 "credits": meta.get("credits", 0.0),
+                "age_hours": age_hours,
             })
         return result
 
