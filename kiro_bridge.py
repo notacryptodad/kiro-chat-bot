@@ -10,6 +10,7 @@ from acp_client import ACPClient, KiroAuthError, PromptResult
 
 KIRO_CLI_PATH = os.environ.get("KIRO_CLI_PATH", "kiro-cli")
 WORKING_DIR = os.environ.get("KIRO_WORKING_DIR", os.getcwd())
+KIRO_DEFAULT_MODEL = os.environ.get("KIRO_DEFAULT_MODEL", "")
 os.makedirs(WORKING_DIR, exist_ok=True)
 CONTEXT_THRESHOLD = 80  # start new session when context usage exceeds this %
 BOT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -104,6 +105,13 @@ class KiroBridge:
 
         acp = self._ensure_acp()
         session_id, _ = acp.session_new(WORKING_DIR)
+        # Apply default model if configured
+        if KIRO_DEFAULT_MODEL:
+            try:
+                acp.session_set_model(session_id, KIRO_DEFAULT_MODEL)
+                log.info("🤖 Set default model: %s", KIRO_DEFAULT_MODEL)
+            except Exception as e:
+                log.warning("Failed to set default model: %s", e)
         with self._sessions_lock:
             self._sessions[key] = session_id
             self._session_history.setdefault(key, []).append(session_id)
@@ -136,6 +144,15 @@ class KiroBridge:
         """Return available models and current model from ACP."""
         acp = self._ensure_acp()
         return acp._models
+
+    def set_model(self, model_id: str, user_key: str = "default") -> bool:
+        """Switch model for the user's active session."""
+        sid = self._sessions.get(user_key)
+        if not sid:
+            return False
+        acp = self._ensure_acp()
+        acp.session_set_model(sid, model_id)
+        return True
 
     def list_sessions(self, user_key: str) -> list[dict]:
         """Return all sessions for a user with metadata."""

@@ -195,13 +195,34 @@ async def cmd_model(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         return
     current = models.get("currentModelId", "unknown")
     available = models.get("availableModels", [])
+
+    # /model <name> — switch model
+    if ctx.args:
+        target = ctx.args[0]
+        valid_ids = [m["modelId"] for m in available]
+        if target not in valid_ids:
+            await update.message.reply_text(
+                f"❌ Unknown model: `{target}`\n\nAvailable:\n"
+                + "\n".join(f"• `{mid}`" for mid in valid_ids),
+                parse_mode="Markdown",
+            )
+            return
+        user_key = str(update.effective_user.id)
+        try:
+            bridge.set_model(target, user_key)
+            await update.message.reply_text(f"✅ Model switched to `{target}`", parse_mode="Markdown")
+        except Exception as e:
+            await update.message.reply_text(f"❌ Failed to switch model: {e}")
+        return
+
+    # /model — list models
     lines = []
     for m in available:
         marker = " ✅" if m["modelId"] == current else ""
-        lines.append(f"• `{m['modelId']}`{marker}\n  {m['description']}")
+        lines.append(f"• `{m['modelId']}`{marker}\n  {m.get('description', '')}")
     await update.message.reply_text(
         f"🤖 Current model: `{current}`\n\n" + "\n".join(lines)
-        + "\n\n⚠️ Model switching via ACP is not yet supported by Kiro CLI.",
+        + "\n\nUse `/model <name>` to switch.",
         parse_mode="Markdown",
     )
 
@@ -273,7 +294,7 @@ async def _on_startup(app: Application):
         BotCommand("reset", "Start a fresh Kiro session"),
         BotCommand("list", "Show all your sessions"),
         BotCommand("resume", "Resume session by number"),
-        BotCommand("model", "Show available models"),
+        BotCommand("model", "Show or switch model (/model <name>)"),
         BotCommand("upgrade", "Pull latest code and restart"),
     ]
     await app.bot.set_my_commands(commands)

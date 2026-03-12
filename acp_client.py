@@ -158,6 +158,13 @@ class ACPClient:
             "mcpServers": [],
         })
 
+    def session_set_model(self, session_id: str, model_id: str) -> dict:
+        """Switch the model for an existing session."""
+        return self._send_request("session/set_model", {
+            "sessionId": session_id,
+            "modelId": model_id,
+        })
+
     # ── Core: Send a Prompt ───────────────────────────────
 
     def session_prompt(
