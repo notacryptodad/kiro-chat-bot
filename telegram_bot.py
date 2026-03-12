@@ -1,9 +1,11 @@
 """telegram_bot.py — Telegram chatbot interface for Kiro CLI via ACP."""
 
+import fcntl
 import logging
 import os
 import socket
 import subprocess
+import sys
 import threading
 
 from telegram import Update
@@ -340,6 +342,23 @@ async def _on_startup(app: Application):
     _mark_online()
 
 
+LOCK_FILE = os.path.join(os.path.dirname(__file__), ".bot.lock")
+_lock_fd = None
+
+
+def _acquire_lock():
+    """Ensure only one bot instance runs. Exit if another is running."""
+    global _lock_fd
+    _lock_fd = open(LOCK_FILE, "w")
+    try:
+        fcntl.flock(_lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        _lock_fd.write(str(os.getpid()))
+        _lock_fd.flush()
+    except OSError:
+        print("Another bot instance is already running. Exiting.", file=sys.stderr)
+        sys.exit(1)
+
+
 def main():
     app = Application.builder().token(TELEGRAM_TOKEN).build()
     app.add_handler(CommandHandler("start", cmd_start))
@@ -358,6 +377,7 @@ def main():
     app.add_error_handler(error_handler)
 
     log.info("🚀 Telegram bot starting...")
+    _acquire_lock()
     
     # Start watchdog thread
     watchdog = threading.Thread(target=_watchdog_thread, daemon=True)
