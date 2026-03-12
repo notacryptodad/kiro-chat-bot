@@ -152,11 +152,14 @@ class ACPClient:
 
     def session_load(self, session_id: str, cwd: str) -> dict:
         """Resume an existing session — preserves full conversation context."""
-        return self._send_request("session/load", {
+        result = self._send_request("session/load", {
             "sessionId": session_id,
             "cwd": cwd,
             "mcpServers": [],
         })
+        if result.get("models"):
+            self._models = result["models"]
+        return result
 
     def session_set_model(self, session_id: str, model_id: str) -> dict:
         """Switch the model for an existing session."""
