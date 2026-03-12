@@ -332,6 +332,7 @@ async def _on_startup(app: Application):
         BotCommand("resume", "Resume session by number"),
         BotCommand("model", "Show or switch model (/model <name>)"),
         BotCommand("upgrade", "Pull latest code and restart"),
+        BotCommand("session_prompt", "Show current session prompt (SOUL.md)"),
     ]
     await app.bot.set_my_commands(commands)
     
@@ -353,7 +354,16 @@ LOCK_FILE = os.path.join(os.path.dirname(__file__), ".bot.lock")
 _lock_fd = None
 
 
-def _acquire_lock():
+async def cmd_session_prompt(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    user_key = str(update.effective_user.id)
+    log.info("/session_prompt from %s", user_key)
+    from kiro_bridge import _load_soul
+    soul = _load_soul()
+    text = soul if soul else "(no SOUL.md loaded)"
+    await update.message.reply_text(f"```\n{text}\n```", parse_mode="Markdown")
+
+
+
     """Ensure only one bot instance runs. Exit if another is running."""
     global _lock_fd
     _lock_fd = open(LOCK_FILE, "w")
@@ -375,6 +385,7 @@ def main():
     app.add_handler(CommandHandler("model", cmd_model))
     app.add_handler(CommandHandler("upgrade", cmd_upgrade))
     app.add_handler(CommandHandler("update", cmd_upgrade))  # alias
+    app.add_handler(CommandHandler("session_prompt", cmd_session_prompt))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     app.post_init = _on_startup
 
