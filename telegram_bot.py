@@ -191,7 +191,9 @@ async def cmd_upgrade(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 async def cmd_model(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     user_key = str(update.effective_user.id)
     # Ensure a session exists so models are discovered
-    bridge._get_session(user_key)
+    import asyncio
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(None, lambda: bridge._get_session(user_key))
     models = bridge.list_models()
     if not models:
         await update.message.reply_text("No model info available yet. Send a message first.")
@@ -212,7 +214,7 @@ async def cmd_model(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             return
         user_key = str(update.effective_user.id)
         try:
-            bridge.set_model(target, user_key)
+            await loop.run_in_executor(None, lambda: bridge.set_model(target, user_key))
             await update.message.reply_text(f"✅ Model switched to `{target}`", parse_mode="Markdown")
         except Exception as e:
             await update.message.reply_text(f"❌ Failed to switch model: {e}")
@@ -329,6 +331,11 @@ def main():
     app.add_handler(CommandHandler("update", cmd_upgrade))  # alias
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     app.post_init = _on_startup
+
+    # Log unhandled errors
+    async def error_handler(update, context):
+        log.error("Unhandled exception: %s", context.error, exc_info=context.error)
+    app.add_error_handler(error_handler)
 
     log.info("🚀 Telegram bot starting...")
     
