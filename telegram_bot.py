@@ -36,6 +36,25 @@ bridge = KiroBridge()
 heartbeat = Heartbeat(bridge)
 
 STATE_FILE = os.path.join(os.path.dirname(__file__), ".bot_state")
+ENV_FILE = os.path.join(os.path.dirname(__file__), ".env")
+
+
+def _update_env(key: str, value: str):
+    """Update or add a key in the .env file."""
+    if not os.path.exists(ENV_FILE):
+        return
+    with open(ENV_FILE) as f:
+        lines = f.readlines()
+    found = False
+    for i, line in enumerate(lines):
+        if line.startswith(f"{key}="):
+            lines[i] = f"{key}={value}\n"
+            found = True
+            break
+    if not found:
+        lines.append(f"{key}={value}\n")
+    with open(ENV_FILE, "w") as f:
+        f.writelines(lines)
 
 
 async def _keep_typing(chat_id: int, bot):
@@ -215,6 +234,7 @@ async def cmd_model(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         user_key = str(update.effective_user.id)
         try:
             await loop.run_in_executor(None, lambda: bridge.set_model(target, user_key))
+            _update_env("KIRO_DEFAULT_MODEL", target)
             await update.message.reply_text(f"✅ Model switched to `{target}`", parse_mode="Markdown")
         except Exception as e:
             await update.message.reply_text(f"❌ Failed to switch model: {e}")
