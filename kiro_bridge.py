@@ -21,12 +21,24 @@ log = logging.getLogger(__name__)
 
 
 def _load_soul() -> str:
-    """Load SOUL.md as system identity. Returns empty string if missing."""
+    """Load SOUL.md, substituting {{BOT_NAME}} from bot_name.txt if present."""
     try:
         with open(SOUL_PATH, "r") as f:
-            return f.read().strip()
+            soul = f.read().strip()
     except FileNotFoundError:
         return ""
+    name_file = os.path.join(WORKING_DIR, "bot_name.txt")
+    try:
+        with open(name_file, "r") as f:
+            name = f.read().strip()
+        soul = soul.replace("{{BOT_NAME}}", name)
+        # Remove the unnamed instruction block once named
+        import re
+        soul = re.sub(r"\{\{#if_unnamed\}\}.*?\{\{/if_unnamed\}\}", "", soul, flags=re.DOTALL).strip()
+    except FileNotFoundError:
+        soul = soul.replace("{{BOT_NAME}}", "[unnamed]")
+        soul = soul.replace("{{#if_unnamed}}", "").replace("{{/if_unnamed}}", "")
+    return soul
 
 
 class KiroBridge:
