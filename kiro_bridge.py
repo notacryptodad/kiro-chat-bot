@@ -57,7 +57,7 @@ class KiroBridge:
         self._sessions_lock = threading.Lock()
         self._soul = _load_soul()
         if self._soul:
-            log.info("🧠 SOUL.md loaded (%d chars)", len(self._soul))
+            log.info("🧠 SOUL.md loaded:\n%s", self._soul)
         self._load_sessions()
         atexit.register(self.stop)
 
