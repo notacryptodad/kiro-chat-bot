@@ -138,7 +138,8 @@ class KiroBridge:
         acp = self._ensure_acp()
         sid = self._get_session(user_key)
 
-        full_prompt = f"{self._soul}\n\n---\n\n{text}" if self._soul else text
+        soul = _load_soul()
+        full_prompt = f"{soul}\n\n---\n\n{text}" if soul else text
         result: PromptResult = acp.session_prompt(sid, full_prompt, timeout=timeout)
 
         return {
